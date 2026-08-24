@@ -35,7 +35,7 @@ def generate_launch_description():
     nav2_bringup = get_package_share_directory('nav2_bringup')
     tb3_nav2 = get_package_share_directory('turtlebot3_navigation2')
     frontier_exploration = get_package_share_directory('frontier_exploration')
-    rviz_config = os.path.join(frontier_exploration, 'rviz/rviz', 'frontier_exploration.rviz')
+    rviz_config = os.path.join(frontier_exploration, 'rviz', 'frontier_exploration.rviz')
 
     print("path of rviz config : ", rviz_config)
     model = LaunchConfiguration('model', default='burger')

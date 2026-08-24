@@ -71,7 +71,7 @@ install(DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch
 )
 install(DIRECTORY config/rviz
-  DESTINATION share/${PROJECT_NAME}/rviz
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_package()

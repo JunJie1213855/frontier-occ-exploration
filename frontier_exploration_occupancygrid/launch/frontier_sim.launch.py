@@ -35,8 +35,9 @@ def generate_launch_description():
     nav2_bringup = get_package_share_directory('nav2_bringup')
     tb3_nav2 = get_package_share_directory('turtlebot3_navigation2')
     frontier_exploration = get_package_share_directory('frontier_exploration')
-    rviz_config = os.path.join(frontier_exploration, 'rviz', 'frontier_exploration.rviz')
+    rviz_config = os.path.join(frontier_exploration, 'rviz/rviz', 'frontier_exploration.rviz')
 
+    print("path of rviz config : ", rviz_config)
     model = LaunchConfiguration('model', default='burger')
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     world = LaunchConfiguration(
@@ -46,39 +47,39 @@ def generate_launch_description():
         'params_file', default=os.path.join(tb3_nav2, 'param', 'humble', 'burger.yaml'))
 
     return LaunchDescription([
-        DeclareLaunchArgument('model', default_value='burger',
-                              description='TurtleBot3 model (burger/waffle/waffle_pi)'),
-        DeclareLaunchArgument('use_sim_time', default_value='true'),
-        DeclareLaunchArgument('world', default_value=os.path.join(tb3_gazebo, 'worlds', 'turtlebot3_world.world'),
-                              description='Full path to a Gazebo .world file'),
-        DeclareLaunchArgument('gui', default_value='false',
-                              description='Open the Gazebo GUI (gzclient)'),
-        DeclareLaunchArgument('params_file', default_value=os.path.join(tb3_nav2, 'param', 'humble', 'burger.yaml')),
+        # DeclareLaunchArgument('model', default_value='burger',
+        #                       description='TurtleBot3 model (burger/waffle/waffle_pi)'),
+        # DeclareLaunchArgument('use_sim_time', default_value='true'),
+        # DeclareLaunchArgument('world', default_value=os.path.join(tb3_gazebo, 'worlds', 'turtlebot3_world.world'),
+        #                       description='Full path to a Gazebo .world file'),
+        # DeclareLaunchArgument('gui', default_value='false',
+        #                       description='Open the Gazebo GUI (gzclient)'),
+        # DeclareLaunchArgument('params_file', default_value=os.path.join(tb3_nav2, 'param', 'humble', 'burger.yaml')),
 
-        SetEnvironmentVariable('TURTLEBOT3_MODEL', model),
-        SetEnvironmentVariable(
-            'GAZEBO_MODEL_PATH',
-            os.path.join(tb3_gazebo, 'models') + ':' + os.path.join(tb3_desc, 'meshes')),
+        # SetEnvironmentVariable('TURTLEBOT3_MODEL', model),
+        # SetEnvironmentVariable(
+        #     'GAZEBO_MODEL_PATH',
+        #     os.path.join(tb3_gazebo, 'models') + ':' + os.path.join(tb3_desc, 'meshes')),
 
-        # 1a) Gazebo server (headless; use gui:=true to also open gzclient)
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([gazebo_ros, 'launch', 'gzserver.launch.py'])),
-            launch_arguments={'world': world}.items(),
-        ),
-        # 1b) Gazebo GUI (optional)
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([gazebo_ros, 'launch', 'gzclient.launch.py'])),
-            condition=IfCondition(gui),
-        ),
-        # 1c) TurtleBot3 robot state publisher + spawn
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([tb3_gazebo, 'launch', 'robot_state_publisher.launch.py'])),
-            launch_arguments={'use_sim_time': use_sim_time}.items(),
-        ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([tb3_gazebo, 'launch', 'spawn_turtlebot3.launch.py'])),
-            launch_arguments={'x_pose': '-2.0', 'y_pose': '-0.5'}.items(),
-        ),
+        # # 1a) Gazebo server (headless; use gui:=true to also open gzclient)
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(PathJoinSubstitution([gazebo_ros, 'launch', 'gzserver.launch.py'])),
+        #     launch_arguments={'world': world}.items(),
+        # ),
+        # # 1b) Gazebo GUI (optional)
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(PathJoinSubstitution([gazebo_ros, 'launch', 'gzclient.launch.py'])),
+        #     condition=IfCondition(gui),
+        # ),
+        # # 1c) TurtleBot3 robot state publisher + spawn
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(PathJoinSubstitution([tb3_gazebo, 'launch', 'robot_state_publisher.launch.py'])),
+        #     launch_arguments={'use_sim_time': use_sim_time}.items(),
+        # ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(PathJoinSubstitution([tb3_gazebo, 'launch', 'spawn_turtlebot3.launch.py'])),
+        #     launch_arguments={'x_pose': '-2.0', 'y_pose': '-0.5'}.items(),
+        # ),
 
         # 2) slam_toolbox + Nav2 navigation
         IncludeLaunchDescription(

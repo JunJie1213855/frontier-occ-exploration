@@ -55,11 +55,21 @@ int main(int argc, char ** argv)
       Duration = currTime - startTime;  // avoid spending too much time on one goal
     }
     if (Duration >= Limit) { std::cout << "Overtime. Changed Goal!!" << std::endl; }
-    actuator.AddToClose(actuator.Goal);  // add to closeList to avoid revisiting the explored goal
-    if (changeFlag != 1 && Duration < Limit) {
+    // add to closeList to avoid revisiting the explored goal
+    actuator.AddToClose(actuator.Goal);
+    // Only a genuinely SUCCEEDED goal counts as "reached". The ROS1 original treated
+    // any non-timeout exit as success, which made the robot sit still while the goal
+    // marker marched through unreachable frontiers (Nav2 aborts them fast, the port
+    // logged "Reached the goal!" and immediately selected the next one).
+    if (actuator.GetGoalStatus().status == rclcpp_action::GoalStatus::STATUS_SUCCEEDED &&
+        changeFlag != 1 && Duration < Limit) {
       std::cout << "Reached the goal!" << std::endl;
       actuator.Rotation(0.0);
     } else {
+      std::cout << "Goal not reached (status: "
+                << static_cast<int>(actuator.GetGoalStatus().status)
+                << "). Selecting next goal." << std::endl;
+      rclcpp::sleep_for(std::chrono::milliseconds(300));  // throttle, don't flood Nav2
       changeFlag = 0;
     }
 

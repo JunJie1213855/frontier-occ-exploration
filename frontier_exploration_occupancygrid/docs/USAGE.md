@@ -2,7 +2,7 @@
 
 > 基于占用栅格地图的单机器人前沿探索包（ROS 1 → ROS 2 Humble 移植版）。
 > 本包只有一个节点 `frontier_planner`：订阅全局地图 → 检测前沿并计算质心 → 通过
-> move_base（move_base_flex）动作服务器驱动机器人逐个探索目标 → 全部探索完成后返航。
+> Nav2 navigate_to_pose 动作服务器驱动机器人逐个探索目标 → 全部探索完成后返航。
 
 ---
 
@@ -13,12 +13,12 @@
   - `rclcpp`、`rclcpp_action`
   - `tf2`、`tf2_ros`、`tf2_geometry_msgs`
   - `geometry_msgs`、`nav_msgs`、`visualization_msgs`
-  - `mbf_msgs`（move_base_flex 的消息/动作定义，提供 `mbf_msgs/action/MoveBase`）
+  - `nav2_msgs`（Nav2 的消息/动作定义，提供 `nav2_msgs/action/NavigateToPose`）
   - `rosidl_default_generators`、`rosidl_default_runtime`
 - 运行时还需外部提供（与本包无关）：
   - **SLAM 地图**：发布 `/map`（`nav_msgs/msg/OccupancyGrid`）的节点，例如 cartographer、slam_toolbox
   - **TF 树**：`map → base_link`（或 `robot_base_frame` 参数指定的 frame）
-  - **动作服务器**：在 `/move_base` 上提供 `mbf_msgs/action/MoveBase` 的导航栈，例如 move_base_flex
+  - **动作服务器**：在 `/navigate_to_pose` 上提供 `nav2_msgs/action/NavigateToPose` 的导航栈，例如 Nav2
 
 ---
 
@@ -31,7 +31,7 @@ colcon build --packages-select frontier_exploration
 source install/setup.bash
 ```
 
-> 如需 move_base_flex 作为动作服务器：`sudo apt install ros-humble-move-base-flex`
+> Nav2 提供 `nav2_msgs` 与导航栈：`sudo apt install ros-humble-navigation2`
 
 ---
 
@@ -44,7 +44,7 @@ ros2 run frontier_exploration frontier_planner
 启动时序（与原版 ROS 1 一致）：
 
 1. 构造 `FrontierDetector` 与 `Actuator`（创建发布器/订阅器/服务/动作客户端）。
-2. `Actuator` 会**阻塞等待 `/move_base` 动作服务器**就绪。
+2. `Actuator` 会**阻塞等待 `/navigate_to_pose` 动作服务器**就绪。
 3. 通过 TF 获取机器人初始位姿并记录为 `Home`。
 4. 执行一次 `Rotation(360.0)` 初始化旋转（需要地图已到达；否则跳过并告警，等待地图）。
 5. 进入主循环：探测前沿 → 选点 → 导航 → 重复，直至无前沿可探 → 返航 → 退出。
@@ -83,7 +83,7 @@ ros2 run frontier_exploration frontier_planner
 
 | 动作服务器 | 动作类型 | 用途 |
 |---|---|---|
-| `/move_base` | `mbf_msgs/action/MoveBase` | 发送/取消导航目标；等待目标状态（SUCCEEDED/ABORTED/CANCELED/超时） |
+| `/navigate_to_pose` | `nav2_msgs/action/NavigateToPose` | 发送/取消导航目标；等待目标状态（SUCCEEDED/ABORTED/CANCELED/超时） |
 
 ---
 
@@ -126,7 +126,7 @@ flowchart TD
         TF[TF map→base_link] --> POSE[robotPose]
         POSE & RAW2 & CEN2 --> SELECT[SelectGoal\n代价 = 距离 × (1 + sigmoid(碰撞惩罚))\n跳过 GoalClose 中的已探点]
         SELECT --> G[Goal]
-        G --> MTG[MoveToGoal\nasync_send_goal → /move_base]
+        G --> MTG[MoveToGoal\nasync_send_goal → /navigate_to_pose]
         MTG --> WAIT{等待目标状态\nSUCCEEDED / ABORTED / CANCELED / 180s 超时}
         WAIT -->|目标格接近障碍 >=65| CANCEL[CancelAllGoals → 更换目标]
         WAIT -->|成功| ADDCLOSE[AddToClose 记录已探目标]
@@ -135,7 +135,7 @@ flowchart TD
 
     START[启动] --> Detector
     START --> Actuator
-    SELECT -->|无前沿或全部已探 GoHomeFlag=1| HOME[ReturnHome → 返航 /move_base → SUCCEEDED 后退出]
+    SELECT -->|无前沿或全部已探 GoHomeFlag=1| HOME[ReturnHome → 返航 /navigate_to_pose → SUCCEEDED 后退出]
 
     WAIT -.->|主循环迭代| IM
     WAIT -.->|主循环迭代| F
@@ -166,7 +166,7 @@ flowchart TD
 
 ## 7. 注意事项
 
-- **启动顺序**：建议先启动 SLAM（`/map`）与导航栈（move_base_flex），再启动本节点；否则节点会在等待动作服务器/TF 处阻塞。
+- **启动顺序**：建议先启动 SLAM（`/map`）与导航栈（Nav2），再启动本节点；否则节点会在等待动作服务器/TF 处阻塞。
 - **地图帧**：目标点按 `map` 帧发送（本包不发布 `inflated_map` 的 TF）。请确保 `map → base_link` TF 可用。
 - **可视化**：RViz 中显示 `/frontier_vis`、`/centroid_vis`、`/goal_vis`、`/home_vis` 与 `/inflated_map` 即可观察探索过程。
 - **服务调试**：`ros2 service call /get_centroids frontier_exploration/srv/GetCentroids '{}'` 可手动触发一次质心计算。
@@ -193,7 +193,7 @@ sudo apt install ros-humble-turtlebot3-description ros-humble-turtlebot3-gazebo 
 ```sh
 source /opt/ros/humble/setup.bash
 cd <工作区>
-colcon build --packages-select mbf_nav2_bridge frontier_exploration
+colcon build --packages-select frontier_exploration
 source install/setup.bash
 ros2 launch frontier_exploration frontier_sim.launch.py
 ```
@@ -218,23 +218,18 @@ flowchart LR
     G[Gazebo: turtlebot3_world] --> S[slam_toolbox 建图]
     S --> M[/map + TF map→odom→base_link/]
     M --> N[Nav2 navigation /navigate_to_pose]
-    N --> B[mbf_nav2_bridge]
-    B --> P[frontier_planner 探索节点]
-    P -->|目标 mbf_msgs/action/MoveBase /move_base| B
+    N -->|目标 nav2_msgs/action/NavigateToPose| P[frontier_planner 探索节点]
     G -->|/scan /odom| N
 ```
 
-> **`mbf_nav2_bridge`**（工作区 `src/mbf_nav2_bridge`，Python）：本库探索节点仍按原设计向
-> `/move_base` 发送 `mbf_msgs/action/MoveBase`；桥接在 `/move_base` 上提供该动作服务器，
-> 把目标转发给 Nav2 的 `/navigate_to_pose`，并翻译取消/结果。这样探索库零改动即可驱动 Nav2。
->
-> 也可用 `mbf_simple_nav` 代替（需另装 MBF 的 planner/controller 插件），不推荐。
+> 探索节点直接向 Nav2 的 `/navigate_to_pose` 发送 `nav2_msgs/action/NavigateToPose` 目标，
+> 无需额外桥接。
 
 ### 8.5 观察与验证
 
 ```sh
 ros2 topic echo /map --once                      # 建图结果
-ros2 action list                                  # /move_base, /navigate_to_pose ...
+ros2 action list                                  # /navigate_to_pose ...
 ros2 topic echo /frontier --once                 # 前沿点
 ros2 topic echo /odom --once                     # 机器人位姿（应随时间变化）
 # 探索节点日志（launch 输出中）：

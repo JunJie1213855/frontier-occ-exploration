@@ -13,7 +13,7 @@
 #include "frontier_exploration/msg/point_array.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/twist.hpp"
-#include "mbf_msgs/action/move_base.hpp"
+#include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 
@@ -22,9 +22,9 @@ const double PI = 3.1415926535897932385;
 namespace Actuator
 {
 
-using MoveBaseAction = mbf_msgs::action::MoveBase;
-using MoveBaseClient = rclcpp_action::Client<MoveBaseAction>;
-using MoveBaseGoalHandle = rclcpp_action::ClientGoalHandle<MoveBaseAction>;
+using NavGoalAction = nav2_msgs::action::NavigateToPose;
+using NavGoalClient = rclcpp_action::Client<NavGoalAction>;
+using NavGoalHandle = rclcpp_action::ClientGoalHandle<NavGoalAction>;
 
 struct Header_param
 {
@@ -39,7 +39,7 @@ struct RobotPose
 };
 
 // Actuator: select a goal from frontiers and drive the robot via the
-// move_base (move_base_flex) action server.
+// Nav2 navigate_to_pose action server.
 class Actuator
 {
 private:
@@ -62,7 +62,7 @@ private:
   geometry_msgs::msg::Twist RotSpeed;
   RobotPose robotPose;  // robot pose through TF
 
-  mbf_msgs::action::MoveBase::Goal MoveGoal;
+  nav2_msgs::action::NavigateToPose::Goal MoveGoal;
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
@@ -73,8 +73,8 @@ private:
   rclcpp::Subscription<frontier_exploration::msg::PointArray>::SharedPtr centroidsSub;
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr RawMapSub_;
 
-  MoveBaseClient::SharedPtr ac_;
-  MoveBaseGoalHandle::SharedPtr goal_handle_;
+  NavGoalClient::SharedPtr ac_;
+  NavGoalHandle::SharedPtr goal_handle_;
 
 public:
   geometry_msgs::msg::Point Goal;

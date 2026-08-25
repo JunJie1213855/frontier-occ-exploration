@@ -92,17 +92,17 @@ void Actuator::Actuator::ReturnHome()
 void Actuator::Actuator::MoveToGoal()
 {
   goal_handle_ = nullptr;  // clear the previous goal's status
-  MoveGoal.target_pose.pose.position = Goal;
-  MoveGoal.target_pose.pose.orientation.w = 1.0;
-  MoveGoal.target_pose.header.stamp = node_->now();
+  MoveGoal.pose.pose.position = Goal;
+  MoveGoal.pose.pose.orientation.w = 1.0;
+  MoveGoal.pose.header.stamp = node_->now();
 
-  auto send_goal_options = MoveBaseClient::SendGoalOptions();
+  auto send_goal_options = NavGoalClient::SendGoalOptions();
   send_goal_options.goal_response_callback =
-    [this](const MoveBaseGoalHandle::SharedPtr & goal_handle) {
+    [this](const NavGoalHandle::SharedPtr & goal_handle) {
       if (goal_handle) { goal_handle_ = goal_handle; }
     };
   send_goal_options.result_callback =
-    [this](const MoveBaseClient::WrappedResult & /*result*/) {
+    [this](const NavGoalClient::WrappedResult & /*result*/) {
       // goal status is tracked via goal_handle_ in the main loop
     };
   ac_->async_send_goal(MoveGoal, send_goal_options);
@@ -213,9 +213,9 @@ void Actuator::Actuator::ActuatorInit()
   RotSpeed.angular.y = 0.0;
   RotSpeed.angular.z = RotateSpeed;
 
-  MoveGoal.target_pose.header.frame_id = "map";  // goal coordinates are computed in the map frame
-  MoveGoal.target_pose.pose.position.z = 0.0;
-  MoveGoal.target_pose.pose.orientation.w = 1.0;
+  MoveGoal.pose.header.frame_id = "map";  // goal coordinates are computed in the map frame
+  MoveGoal.pose.pose.position.z = 0.0;
+  MoveGoal.pose.pose.orientation.w = 1.0;
 }
 
 void Actuator::Actuator::AddToClose(geometry_msgs::msg::Point & goal)
@@ -329,12 +329,12 @@ Actuator::Actuator::Actuator(const rclcpp::Node::SharedPtr & node)
 {
   ActuatorInit();
   VisInit();
-  ac_ = rclcpp_action::create_client<MoveBaseAction>(node, "move_base");
+  ac_ = rclcpp_action::create_client<NavGoalAction>(node, "navigate_to_pose");
 
-  // wait for the move_base (move_base_flex) action server, like the ROS1
+  // wait for the Nav2 navigate_to_pose action server, like the ROS1
   // SimpleActionClient("move_base", true) did
   while (rclcpp::ok() && !ac_->wait_for_action_server(std::chrono::seconds(1))) {
-    RCLCPP_INFO(node_->get_logger(), "Waiting for move_base action server...");
+    RCLCPP_INFO(node_->get_logger(), "Waiting for navigate_to_pose action server...");
   }
 
   ObtainPose();

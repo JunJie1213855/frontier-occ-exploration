@@ -14,7 +14,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-find_package(mbf_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -39,7 +39,7 @@ ament_target_dependencies(frontierDetector
   geometry_msgs
   nav_msgs
   visualization_msgs
-  mbf_msgs
+  nav2_msgs
 )
 target_link_libraries(frontierDetector ${PROJECT_NAME}__rosidl_typesupport_cpp)
 
@@ -55,7 +55,7 @@ ament_target_dependencies(frontier_planner
   geometry_msgs
   nav_msgs
   visualization_msgs
-  mbf_msgs
+  nav2_msgs
 )
 target_link_libraries(frontier_planner frontierDetector ${PROJECT_NAME}__rosidl_typesupport_cpp)
 

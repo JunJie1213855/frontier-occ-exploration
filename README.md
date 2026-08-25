@@ -1,7 +1,7 @@
 # Frontier-based exploration (ROS 2)
 
 ROS 2 (Humble) 版本的前沿探索包：在占用栅格地图上检测前沿、计算质心，并通过
-move_base (move_base_flex) 动作服务器驱动机器人探索未知环境。原算法逻辑逐行保留，
+Nav2 navigate_to_pose 动作服务器驱动机器人探索未知环境。原算法逻辑逐行保留，
 仅把 ROS 1 API 迁移到 ROS 2。
 
 > 本仓库同时保留了 ROS 1 的仿真资产（`launch/`、`config/`、`urdf/`、`world/`、`meshes/`）。
@@ -11,12 +11,12 @@ move_base (move_base_flex) 动作服务器驱动机器人探索未知环境。�
 
 - ROS 2 Humble
 - 构建期：`rclcpp`、`rclcpp_action`、`tf2`、`tf2_ros`、`tf2_geometry_msgs`、
-  `geometry_msgs`、`nav_msgs`、`visualization_msgs`、`mbf_msgs`、`rosidl_default_generators`
-- 运行期：提供 `mbf_msgs/action/MoveBase` 动作服务的导航栈（例如 move_base_flex）、
+  `geometry_msgs`、`nav_msgs`、`visualization_msgs`、`nav2_msgs`、`rosidl_default_generators`
+- 运行期：提供 `nav2_msgs/action/NavigateToPose` 动作服务的导航栈（例如 Nav2）、
   SLAM 地图、`map -> base_link` 的 TF 树
 
 ```sh
-sudo apt install ros-humble-move-base-flex   # 若需要 move_base_flex 动作服务器
+sudo apt install ros-humble-navigation2       # 提供 nav2_msgs 与 Nav2 导航栈
 ```
 
 ## 构建
@@ -37,7 +37,7 @@ ros2 run frontier_exploration frontier_planner
 运行时前置（由外部提供，与本包无关）：
 1. `/map`（`nav_msgs/msg/OccupancyGrid`）发布者，例如 cartographer / slam_toolbox；
 2. `map -> base_link`（或 `robot_base_frame` 参数指定）TF 树；
-3. 提供 `mbf_msgs/action/MoveBase` 的动作服务器（topic `/move_base`），例如 move_base_flex。
+3. 提供 `nav2_msgs/action/NavigateToPose` 的动作服务器（topic `/navigate_to_pose`），例如 Nav2。
 
 ## 话题与参数
 
@@ -64,9 +64,9 @@ ros2 run frontier_exploration frontier_planner
 
 ## 说明与限制
 
-- 节点启动时会等待 `/move_base` 动作服务器与 TF，之后开始探索（与原版 ROS 1 行为一致）。
+- 节点启动时会等待 `/navigate_to_pose` 动作服务器与 TF，之后开始探索（与原版 ROS 1 行为一致）。
 - 这是纯库移植，不包含 ROS 1 的 launch/Gazebo/URDF 仿真栈；如需完整仿真，请在 ROS 2 下
-  自行用 move_base_flex / Nav2、SLAM 与 Gazebo 搭建。
+  自行用 Nav2、SLAM 与 Gazebo 搭建。
 - 移植中修正的原始缺陷：
   - 服务名拼写错误 `get_centriods` → `get_centroids`；
   - 清理未使用的订阅/发布器与成员（原 `std_srvs` client、`move_base/goal`、`move_base/cancel` 等）；

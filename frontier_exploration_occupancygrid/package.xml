@@ -6,7 +6,7 @@
   <description>
     ROS 2 port of a frontier-based exploration package: detects frontiers on an
     occupancy grid, computes centroids, and drives a robot to goals via the
-    move_base (move_base_flex) action server.
+    Nav2 navigate_to_pose action server.
   </description>
   <maintainer email="sdu@todo.todo">sdu</maintainer>
   <license>MIT</license>
@@ -22,7 +22,7 @@
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>visualization_msgs</depend>
-  <depend>mbf_msgs</depend>
+  <depend>nav2_msgs</depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
 

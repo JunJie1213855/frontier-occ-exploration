@@ -5,8 +5,7 @@ Brings up:
   1. Gazebo (headless gzserver by default; optional gzclient GUI via gui:=true)
      with the TurtleBot3 burger + slam_toolbox SLAM + Nav2 navigation
   2. RViz with the exploration displays (map, inflated map, frontiers, centroids, goal, home)
-  3. mbf_nav2_bridge: exposes mbf_msgs/action/MoveBase on /move_base, forwards to Nav2
-  4. frontier_planner: the exploration node
+  3. frontier_planner: the exploration node (sends goals directly to Nav2 /navigate_to_pose)
 
 Usage:
   ros2 launch frontier_exploration frontier_sim.launch.py
@@ -105,16 +104,7 @@ def generate_launch_description():
             parameters=[{'use_sim_time': True}],
         ),
 
-        # 4) mbf -> Nav2 bridge
-        Node(
-            package='mbf_nav2_bridge',
-            executable='mbf_nav2_bridge',
-            name='mbf_nav2_bridge',
-            output='screen',
-            parameters=[{'use_sim_time': True}],
-        ),
-
-        # 5) frontier exploration node
+        # 4) frontier exploration node
         Node(
             package='frontier_exploration',
             executable='frontier_planner',

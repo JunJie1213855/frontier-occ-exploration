@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     rclcpp::spin_some(node);
     rclcpp::sleep_for(std::chrono::milliseconds(500));
   }
-  // rotate 360 degrees to initialize the environment
+  // 旋转 360度 用来环境初始化
   actuator.Rotation(360.0);
 
   // -------------------- Main Loop -------------------- //
@@ -58,6 +58,7 @@ int main(int argc, char **argv)
            bool(Duration < Limit))
     {
       rclcpp::spin_some(node);
+      // 如果目标在膨胀地图的值大于了 65 了，就取消该目标点
       if (frontier_detector.GridValue(frontier_detector.inflated_map, actuator.Goal) >= 65)
       {
         changeFlag = 1;
@@ -68,23 +69,27 @@ int main(int argc, char **argv)
       time(&currTime);
       Duration = currTime - startTime; // avoid spending too much time on one goal
     }
+
+    // 持续时间大于了限制时间，超时换目标
     if (Duration >= Limit)
     {
       std::cout << "Overtime. Changed Goal!!" << std::endl;
     }
+    // 添加到 closelist ，防止重复访问
     // add to closeList to avoid revisiting the explored goal
     actuator.AddToClose(actuator.Goal);
     // Only a genuinely SUCCEEDED goal counts as "reached". The ROS1 original treated
     // any non-timeout exit as success, which made the robot sit still while the goal
     // marker marched through unreachable frontiers (Nav2 aborts them fast, the port
     // logged "Reached the goal!" and immediately selected the next one).
+    // 如果到达了目标点，就打印
     if (actuator.GetGoalStatus().status == rclcpp_action::GoalStatus::STATUS_SUCCEEDED &&
         changeFlag != 1 && Duration < Limit)
     {
       std::cout << "Reached the goal!" << std::endl;
       actuator.Rotation(0.0);
     }
-    else
+    else // 没有到达目标点，那就直接选择下一个
     {
       std::cout << "Goal not reached (status: "
                 << static_cast<int>(actuator.GetGoalStatus().status)
@@ -102,7 +107,7 @@ int main(int argc, char **argv)
         (frontier_detector.frontier.size() == 0 ||
          frontier_detector.centroids.size() == 0 ||
          actuator.GoHomeFlag == 1))
-    { // for homing
+    { // 返航
       actuator.ReturnHome();
       // BUG FIX: 返航目标可能被 ABORTED（如机器人本来就在原点附近、控制器报"无进展"），
       // 原循环只等 SUCCEEDED 会永久卡死（日志反复打印 "Exploration finished! Returning home.."）。

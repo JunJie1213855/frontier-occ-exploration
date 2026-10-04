@@ -5,6 +5,12 @@
 #include <functional>
 #include <iostream>
 
+// 获取占据式地图的值
+// map 中的值表示
+// 0：空闲区域，机器人可行走
+// 1~99：不确定区域
+// 100：占据区域，障碍物
+// -1：未知区域
 int FrontierDetector::FrontierDetector::GridValue(nav_msgs::msg::OccupancyGrid &map,
                                                   geometry_msgs::msg::Point &x1)
 {
@@ -13,11 +19,16 @@ int FrontierDetector::FrontierDetector::GridValue(nav_msgs::msg::OccupancyGrid &
   {
     return 0;
   }
+  // 获取地图的原点坐标值 x和y
   float Xoriginx = map.info.origin.position.x;
   float Xoriginy = map.info.origin.position.y;
+  
   int index;
+
+  // 获取索引
   index = int((x1.y + std::fabs(Xoriginy)) / map.info.resolution) * map.info.width +
           int((x1.x + std::fabs(Xoriginx)) / map.info.resolution);
+  // 代价值
   int out = map.data[index];
   return out;
 }
@@ -28,6 +39,11 @@ int FrontierDetector::FrontierDetector::CheckNeibor(nav_msgs::msg::OccupancyGrid
   int x = index % inflated_map.info.width;
   int y = index / inflated_map.info.width;
   int flag = 0;
+  /** 八邻域检测，只要该点八邻域存在小于 65 且大于等于 35 或者是非探索点直接设置为 frontier 点
+   * [x - 1, y - 1] [x , y - 1] [x + 1, y - 1]
+   * [x - 1, y    ] [x , y    ] [x + 1, y    ]
+   * [x - 1, y + 1] [x , y + 1] [x + 1, y + 1]
+   */
   for (int i = x - 1; i < x + 2; i++)
   {
     if (flag == 1)
@@ -36,6 +52,7 @@ int FrontierDetector::FrontierDetector::CheckNeibor(nav_msgs::msg::OccupancyGrid
     }
     for (int j = y - 1; j < y + 2; j++)
     {
+      // 如果是当前点直接跳过
       if (i == x && j == y)
       {
         continue;
@@ -44,6 +61,7 @@ int FrontierDetector::FrontierDetector::CheckNeibor(nav_msgs::msg::OccupancyGrid
       {
         continue;
       }
+      // 判断法则
       if ((inflated_map.data[j * inflated_map.info.width + i] >= 35 &&
            inflated_map.data[j * inflated_map.info.width + i] < 65) ||
           inflated_map.data[j * inflated_map.info.width + i] == -1)
@@ -59,7 +77,7 @@ int FrontierDetector::FrontierDetector::CheckNeibor(nav_msgs::msg::OccupancyGrid
 
 void FrontierDetector::FrontierDetector::InitVis()
 {
-  // frontier is blue
+  // frontier 前沿点是蓝色的
   frontier_vis.header.frame_id = header.frame_id;
   frontier_vis.header.stamp = header.stamp;
   frontier_vis.ns = "frontier";
@@ -77,7 +95,7 @@ void FrontierDetector::FrontierDetector::InitVis()
   frontier_vis.pose.orientation.w = 1.0;
   frontier_vis.points.clear();
 
-  // centroids are red
+  // centroids 质心是红色的
   centroid_vis.header.frame_id = header.frame_id;
   centroid_vis.header.stamp = header.stamp;
   centroid_vis.ns = "centroids";
@@ -96,18 +114,26 @@ void FrontierDetector::FrontierDetector::InitVis()
   centroid_vis.points.clear();
 }
 
+// 每次接收 map 就会执行一次
 void FrontierDetector::FrontierDetector::mapCallback(nav_msgs::msg::OccupancyGrid::SharedPtr raw_map)
 {
+  // 首先设置 frontier map 的相关信息
   FrontierDetector::raw_map.header.frame_id = "inflated_map";
   FrontierDetector::raw_map.header.stamp = header.stamp;
   FrontierDetector::raw_map.info = raw_map->info;
   FrontierDetector::raw_map.data = raw_map->data;
-  // inflate the grid map
+
+  // 膨胀 grid map
   InflateMap(FrontierDetector::raw_map, FrontierDetector::inflated_map);
-  // get all frontiers
+
+  // 获取所有 frontier 点
   ComputeFrontier(inflated_map);
   Frontier.points = frontier;
+
+  // 质心点设置
   Centroids.points = centroids;
+
+  // 发布信息
   FrontierPub_->publish(Frontier);
   if (Centroids.points.size() != 0)
   {
@@ -214,6 +240,7 @@ bool FrontierDetector::FrontierDetector::ComputeFrontier(nav_msgs::msg::Occupanc
     for (long n = 0; n < inflated_map.data.size(); n++)
     {
       // if the cell is free and a neighbor is unknown, it is a frontier cell
+      // 如果当前点为高置信度点且邻域有一个是低置信度点或者未知区域，就将其设置为 frontier 
       if (inflated_map.data[n] >= 0 && inflated_map.data[n] < 35 && CheckNeibor(inflated_map, n) == 1)
       {
         int n_x = n % inflated_map.info.width;
@@ -236,6 +263,7 @@ bool FrontierDetector::FrontierDetector::ComputeFrontier(nav_msgs::msg::Occupanc
 bool FrontierDetector::FrontierDetector::ComputeCentroids(
     nav_msgs::msg::OccupancyGrid &inflated_map, std::vector<geometry_msgs::msg::Point> &frontiers)
 {
+  // 清空质心点和原始质心点
   FrontierDetector::centroids.clear();
   FrontierDetector::raw_centroids.clear();
   pointGroup.clear();
@@ -244,6 +272,8 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
     std::cout << "Cannot find any frontiers! Checking!!" << std::endl;
     return false;
   }
+
+
   for (int i = 0; i < frontiers.size(); i++)
   {
     if (frontierClose.size() > 1)
@@ -256,6 +286,7 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
     pointGroup.push_back(frontiers[i]);
     frontierClose.push_back(frontiers[i]);
     // find frontier groups; every group is disconnected from each other
+    // DFS 聚类
     Grouping(inflated_map, frontiers[i]);
     pointGroup = Sort(inflated_map, pointGroup); // sort based on map-image index
     if (pointGroup.size() <= 6)
@@ -282,8 +313,10 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
         {
           continue;
         }
+        // 计算距离
         float distance = sqrt(pow((raw_centroids[m].x - raw_centroids[n].x), 2) +
                               pow((raw_centroids[m].y - raw_centroids[n].y), 2));
+        // 距离小于 3
         if (distance < 3 && CheckCollision(raw_map, raw_centroids[m], raw_centroids[n]))
         {
           if (std::find(pop_index.begin(), pop_index.end(), n) == pop_index.end())
@@ -316,10 +349,14 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
 bool FrontierDetector::FrontierDetector::CheckCollision(
     const nav_msgs::msg::OccupancyGrid &map, geometry_msgs::msg::Point &start, geometry_msgs::msg::Point &end)
 {
+  // 起始点到终点的距离
   float length = sqrt(pow((start.x - end.x), 2) + pow((start.y - end.y), 2));
+  // 角度
   float COS_THETA = (end.x - start.x) / length;
   float SIN_THETA = (end.y - start.y) / length;
+  // 分辨率
   float resolution = map.info.resolution;
+  // 一个单元设置为一步
   float STEP = resolution;
   int count = 0;
 
@@ -329,13 +366,15 @@ bool FrontierDetector::FrontierDetector::CheckCollision(
   {
     int x_check_world = (x_check + fabs(map.info.origin.position.x)) / map.info.resolution;
     int y_check_world = (y_check + fabs(map.info.origin.position.y)) / map.info.resolution;
+    // 如果有比较高的不确定区域，默认为障碍
     if (map.data[x_check_world + (y_check_world * map.info.width)] >= 70)
     {
       count++;
     }
     x_check += STEP * COS_THETA;
     y_check += STEP * SIN_THETA;
-    if (count > 2)
+    // 障碍数量大于 2,就是有碰撞
+    if (count > 2) 
     {
       return false;
     }
@@ -343,9 +382,11 @@ bool FrontierDetector::FrontierDetector::CheckCollision(
   return true;
 }
 
+// 可优化
 void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid &inflated_map,
                                                   geometry_msgs::msg::Point &point)
 {
+  // DFS 八邻域聚类，可以换成 BFS 更好一点
   int out = 0;
   geometry_msgs::msg::Point temp;
   geometry_msgs::msg::Point worldPoint;
@@ -356,6 +397,7 @@ void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid &
 
   if (!frontier.empty())
   {
+    // 八 邻域聚类
     for (float i = worldPoint.x - 1; i <= worldPoint.x + 1; i++)
     {
       if (out == 1)
@@ -386,6 +428,7 @@ void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid &
           index = std::distance(frontier.begin(), itera);
           pointGroup.push_back(frontier[index]);
           frontierClose.push_back(frontier[index]);
+          // 递归
           Grouping(inflated_map, frontier[index]); // recursive
           out = 1;
           break;
@@ -426,6 +469,9 @@ std::vector<geometry_msgs::msg::Point> FrontierDetector::FrontierDetector::Sort(
   return outcome;
 }
 
+// 初始化发布者和订阅者
+// map 订阅者
+// 获取质心点服务
 FrontierDetector::FrontierDetector::FrontierDetector(const rclcpp::Node::SharedPtr &node)
     : node_(node),
       frontierMarker_(node->create_publisher<visualization_msgs::msg::Marker>("frontier_vis", 1000)),

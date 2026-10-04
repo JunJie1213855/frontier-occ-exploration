@@ -31,6 +31,7 @@ void Actuator::Actuator::Rotation(float angle)
     return;
   }
 
+  // 获取当前位姿
   ObtainPose(); // obtain the robot's current pose
   // frame transformation: map -> image
   int world_x = (robotPose.Position.x + fabs(raw_map.info.origin.position.x)) / raw_map.info.resolution;
@@ -56,6 +57,7 @@ void Actuator::Actuator::Rotation(float angle)
     }
   }
 
+  // 记录已经旋转的角度
   double rotated_angle = 0.0; // rotated angle
   time_t initTime, currTime;
   time_t duration = 0L;
@@ -66,16 +68,18 @@ void Actuator::Actuator::Rotation(float angle)
   {
     time(&currTime);
     duration = currTime - initTime;
+    // 记录旧角度
     double old_yaw = robotPose.Yaw;
-    cmdPub->publish(RotSpeed);
+    cmdPub->publish(RotSpeed); // 旋转一次
+    // 获取位姿
     ObtainPose();
     rclcpp::spin_some(node_);
-    double dYaw = robotPose.Yaw - old_yaw;
+    double dYaw = robotPose.Yaw - old_yaw; // 记录增量角度
     if ((robotPose.Yaw >= 0 && robotPose.Yaw < 350) && (old_yaw >= 350 && old_yaw < 360))
     {
       dYaw = robotPose.Yaw + (360.0 - old_yaw);
     }
-    rotated_angle += dYaw;
+    rotated_angle += dYaw; // 记录已经旋转的总角度
   }
   duration = 0;
 }
@@ -101,7 +105,11 @@ void Actuator::Actuator::ReturnHome()
 
 void Actuator::Actuator::MoveToGoal()
 {
+  // 清空上一个目标点
   goal_handle_ = nullptr; // clear the previous goal's status
+
+  // 设置目标点的坐标
+  MoveGoal.pose.header.frame_id = "map";
   MoveGoal.pose.pose.position = Goal;
   MoveGoal.pose.pose.orientation.w = 1.0;
   MoveGoal.pose.header.stamp = node_->now();
@@ -120,6 +128,7 @@ void Actuator::Actuator::MoveToGoal()
   {
     // goal status is tracked via goal_handle_ in the main loop
   };
+  // 发送到达目标
   ac_->async_send_goal(MoveGoal, send_goal_options);
 }
 
@@ -135,7 +144,7 @@ void Actuator::Actuator::Visualization()
 
 void Actuator::Actuator::VisInit()
 {
-  // goal is pink
+  // 目标点设置为粉红色
   GoalMarker.header.frame_id = header.frame_id;
   GoalMarker.header.stamp = header.stamp;
   GoalMarker.ns = "goal";
@@ -153,7 +162,7 @@ void Actuator::Actuator::VisInit()
   GoalMarker.pose.orientation.w = 1.0;
   GoalMarker.points.clear();
 
-  // home is green
+  // 初始点设置为绿色
   HomeMarker.header.frame_id = header.frame_id;
   HomeMarker.header.stamp = header.stamp;
   HomeMarker.ns = "home";
@@ -175,6 +184,7 @@ void Actuator::Actuator::VisInit()
 void Actuator::Actuator::ObtainPose()
 {
   geometry_msgs::msg::TransformStamped transform;
+  // 查看 ${RobotBase} 到 map 的 tf 位姿是否存在
   tf_buffer_.canTransform("map", RobotBase, rclcpp::Time(0), rclcpp::Duration::from_seconds(0.5));
   int temp = 0;
 
@@ -182,15 +192,21 @@ void Actuator::Actuator::ObtainPose()
   {
     try
     {
+      // 获取从 map -> ${RobotBase} 的 TF 变换
       transform = tf_buffer_.lookupTransform("map", RobotBase, tf2::TimePointZero);
       temp = 1;
+
+      // 获取机器人平移 x, y
       robotPose.Position.x = transform.transform.translation.x;
       robotPose.Position.y = transform.transform.translation.y;
-      robotPose.Position.z = 0.0;
+      robotPose.Position.z = 0.0; // 固定 z = 0, 因为是平面运动
+
+      // 获取旋转角 yaw
       tf2::Quaternion q;
       tf2::fromMsg(transform.transform.rotation, q);
+      // 获取 yaw
       double Yaw = tf2::getYaw(q);
-      if (Yaw < 0)
+      if (Yaw < 0) // 如果是不规则的 yaw，则转换
       {
         Yaw = 2 * PI - fabs(Yaw);
       }
@@ -220,12 +236,14 @@ void Actuator::Actuator::ActuatorInit()
   node_->get_parameter("robot_base_frame", RobotBase);
   node_->get_parameter("goal_tolerance", GoalTolerance);
   node_->get_parameter("obstacle_tolerance", ObstacleTolerance);
-  node_->get_parameter("rotate_speed", RotateSpeed);
+  node_->get_parameter("rotate_speed", RotateSpeed); // 每次旋转的角度
 
   iteration = 0;
   GoHomeFlag = 0;
   centroids.clear();
   GoalClose.clear();
+
+  // 将初始化的旋转速度转换为 cmd 发布者可以接收的方式
   RotSpeed.linear.x = 0.0;
   RotSpeed.linear.y = 0.0;
   RotSpeed.linear.z = 0.0;
@@ -233,6 +251,7 @@ void Actuator::Actuator::ActuatorInit()
   RotSpeed.angular.y = 0.0;
   RotSpeed.angular.z = RotateSpeed;
 
+  // 移动目标点，设置初始值，其中 z = 0 （恒定），旋转的 w 固定为 1.0
   MoveGoal.pose.header.frame_id = "map"; // goal coordinates are computed in the map frame
   MoveGoal.pose.pose.position.z = 0.0;
   MoveGoal.pose.pose.orientation.w = 1.0;
@@ -249,11 +268,13 @@ void Actuator::Actuator::AddToClose(geometry_msgs::msg::Point &goal)
 
 geometry_msgs::msg::Point Actuator::Actuator::SelectGoal(std::vector<geometry_msgs::msg::Point> &centroids)
 {
+  // 获取当前位姿
   ObtainPose();
   int index = 0;
   int count = 0; // whether all centroids are in GoalClose
   double shortest = 10000;
   double temp;
+  // 如果没有质心，就直接返回初始点
   if (centroids.size() == 0)
   {
     std::cout << "No centroids!  No goal!" << std::endl;
@@ -267,8 +288,10 @@ geometry_msgs::msg::Point Actuator::Actuator::SelectGoal(std::vector<geometry_ms
       {
         for (int n = 0; n < GoalClose.size(); n++)
         {
+          // 计算距离
           float Distance = sqrt(pow((centroids[i].x - GoalClose[n].x), 2) +
                                 pow((centroids[i].y - GoalClose[n].y), 2));
+          // 阈值判断是否到达
           if (Distance < GoalTolerance && Distance > 0.0001)
           {
             GoalClose.push_back(centroids[i]); // abandon centroid close to an explored goal
@@ -376,10 +399,13 @@ Actuator::Actuator::Actuator(const rclcpp::Node::SharedPtr &node)
     RCLCPP_INFO(node_->get_logger(), "Waiting for navigate_to_pose action server...");
   }
 
+  // 获取当前机器人的位姿，并且设置为初始点位姿
   ObtainPose();
   Home = robotPose.Position;
   Goal = Home;
+  // 答应
   std::cout << "Home pose: " << Home.x << "," << Home.y << std::endl;
+  // 创建指令发布者
   cmdPub = node->create_publisher<geometry_msgs::msg::Twist>(CmdTopic, 1000);
 }
 

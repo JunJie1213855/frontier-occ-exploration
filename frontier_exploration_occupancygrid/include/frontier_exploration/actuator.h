@@ -32,9 +32,10 @@ namespace Actuator
     rclcpp::Time stamp = rclcpp::Clock().now();
   };
 
+  // 三自由度 x,y,yaw
   struct RobotPose
   {
-    geometry_msgs::msg::Point Position;
+    geometry_msgs::msg::Point Position; // x,y,z 其中 z 固定为 0 
     double Yaw;
   };
 
@@ -53,8 +54,8 @@ namespace Actuator
     long iteration;
 
     Header_param header;
-    std::vector<geometry_msgs::msg::Point> centroids;
-    geometry_msgs::msg::Point Home; // the mapping origin
+    std::vector<geometry_msgs::msg::Point> centroids; // 记录的质心
+    geometry_msgs::msg::Point Home; // 地图原点，或者是初始化时的所在点
     visualization_msgs::msg::Marker GoalMarker;
     visualization_msgs::msg::Marker HomeMarker;
     nav_msgs::msg::OccupancyGrid raw_map;
@@ -64,15 +65,20 @@ namespace Actuator
 
     nav2_msgs::action::NavigateToPose::Goal MoveGoal;
 
+    // 位姿树广播器
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
 
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdPub;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr goal_vis;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr home_vis;
-    rclcpp::Subscription<frontier_exploration::msg::PointArray>::SharedPtr centroidsSub;
-    rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr RawMapSub_;
+    // 发布
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdPub;         // 控制输入
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr goal_vis; // 目标点
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr home_vis; // 初始点
+    
+    // 订阅
+    rclcpp::Subscription<frontier_exploration::msg::PointArray>::SharedPtr centroidsSub; // 质心点
+    rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr RawMapSub_;            // 原始的地图话题
 
+    // 导航客户端，发送/接收 nav2 服务器的信息 
     NavGoalClient::SharedPtr ac_;
     NavGoalHandle::SharedPtr goal_handle_;
 

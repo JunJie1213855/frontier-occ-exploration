@@ -5,11 +5,12 @@
 #include <functional>
 #include <iostream>
 
-int FrontierDetector::FrontierDetector::GridValue(nav_msgs::msg::OccupancyGrid & map,
-                                                  geometry_msgs::msg::Point & x1)
+int FrontierDetector::FrontierDetector::GridValue(nav_msgs::msg::OccupancyGrid &map,
+                                                  geometry_msgs::msg::Point &x1)
 {
   // guard: no map yet -> treat as free (main loop calls this before the first /map)
-  if (map.data.empty() || map.info.resolution <= 0.0f) {
+  if (map.data.empty() || map.info.resolution <= 0.0f)
+  {
     return 0;
   }
   float Xoriginx = map.info.origin.position.x;
@@ -21,22 +22,32 @@ int FrontierDetector::FrontierDetector::GridValue(nav_msgs::msg::OccupancyGrid &
   return out;
 }
 
-int FrontierDetector::FrontierDetector::CheckNeibor(nav_msgs::msg::OccupancyGrid & inflated_map,
-                                                    long & index)
+int FrontierDetector::FrontierDetector::CheckNeibor(nav_msgs::msg::OccupancyGrid &inflated_map,
+                                                    long &index)
 {
   int x = index % inflated_map.info.width;
   int y = index / inflated_map.info.width;
   int flag = 0;
-  for (int i = x - 1; i < x + 2; i++) {
-    if (flag == 1) { break; }
-    for (int j = y - 1; j < y + 2; j++) {
-      if (i == x && j == y) { continue; }
-      if (i - 1 < 0 || i + 1 > inflated_map.info.width || j - 1 < 0 || j + 1 > inflated_map.info.height) {
+  for (int i = x - 1; i < x + 2; i++)
+  {
+    if (flag == 1)
+    {
+      break;
+    }
+    for (int j = y - 1; j < y + 2; j++)
+    {
+      if (i == x && j == y)
+      {
+        continue;
+      }
+      if (i - 1 < 0 || i + 1 > inflated_map.info.width || j - 1 < 0 || j + 1 > inflated_map.info.height)
+      {
         continue;
       }
       if ((inflated_map.data[j * inflated_map.info.width + i] >= 35 &&
-            inflated_map.data[j * inflated_map.info.width + i] < 65) ||
-            inflated_map.data[j * inflated_map.info.width + i] == -1) {
+           inflated_map.data[j * inflated_map.info.width + i] < 65) ||
+          inflated_map.data[j * inflated_map.info.width + i] == -1)
+      {
         // neighbor cell is unknown -> frontier
         flag = 1;
         break;
@@ -98,13 +109,16 @@ void FrontierDetector::FrontierDetector::mapCallback(nav_msgs::msg::OccupancyGri
   Frontier.points = frontier;
   Centroids.points = centroids;
   FrontierPub_->publish(Frontier);
-  if (Centroids.points.size() != 0) { CentroidsPub_->publish(Centroids); }
+  if (Centroids.points.size() != 0)
+  {
+    CentroidsPub_->publish(Centroids);
+  }
   Visualization();
 }
 
 void FrontierDetector::FrontierDetector::centroidCallback(
-  const frontier_exploration::srv::GetCentroids::Request::SharedPtr req,
-  frontier_exploration::srv::GetCentroids::Response::SharedPtr res)
+    const frontier_exploration::srv::GetCentroids::Request::SharedPtr req,
+    frontier_exploration::srv::GetCentroids::Response::SharedPtr res)
 {
   (void)req;
   ComputeCentroids(inflated_map, frontier);
@@ -114,17 +128,22 @@ void FrontierDetector::FrontierDetector::centroidCallback(
 
 void FrontierDetector::FrontierDetector::Visualization()
 {
-  if (FrontierDetector::frontier.empty()) {
+  if (FrontierDetector::frontier.empty())
+  {
     std::cout << "Frontier no found! Waiting......" << std::endl;
   }
-  if (FrontierDetector::centroids.empty()) {
+  if (FrontierDetector::centroids.empty())
+  {
     std::cout << "Computing the goal! Waiting....." << std::endl;
   }
-  if (frontier.size() == 0 || centroids.size() == 0) {
+  if (frontier.size() == 0 || centroids.size() == 0)
+  {
     // avoid node dying if no frontier or centroid found
     FrontierDetector::frontierMarker_->publish(FrontierDetector::frontier_vis);
     FrontierDetector::centroidMarker_->publish(FrontierDetector::centroid_vis);
-  } else {
+  }
+  else
+  {
     FrontierDetector::frontier_vis.points.clear();
     FrontierDetector::centroid_vis.points.clear();
     FrontierDetector::frontier_vis.points = FrontierDetector::frontier;
@@ -148,27 +167,36 @@ void FrontierDetector::FrontierDetector::InitDetector()
   node_->get_parameter("map_revolution", this->MapRevolution);
 }
 
-bool FrontierDetector::FrontierDetector::InflateMap(nav_msgs::msg::OccupancyGrid & raw_map,
-                                                    nav_msgs::msg::OccupancyGrid & inflated_map)
+bool FrontierDetector::FrontierDetector::InflateMap(nav_msgs::msg::OccupancyGrid &raw_map,
+                                                    nav_msgs::msg::OccupancyGrid &inflated_map)
 {
   inflated_map = raw_map;
   int dilate_amount = round(OBSTABLE_INFLATION / raw_map.info.resolution);
-  for (int x = 0; x < raw_map.info.width; x++) {
-    for (int y = 0; y < raw_map.info.height; y++) {
+  for (int x = 0; x < raw_map.info.width; x++)
+  {
+    for (int y = 0; y < raw_map.info.height; y++)
+    {
       if (raw_map.data[raw_map.info.width * y + x] < 65 &&
-          raw_map.data[raw_map.info.width * y + x] >= 0) {
-        inflated_map.data[raw_map.info.width * y + x] = 0;  // free cell, continue
+          raw_map.data[raw_map.info.width * y + x] >= 0)
+      {
+        inflated_map.data[raw_map.info.width * y + x] = 0; // free cell, continue
         continue;
       }
-      if (raw_map.data[raw_map.info.width * y + x] == -1) { continue; }
-      for (int i = -dilate_amount; i <= dilate_amount; i++) {
-        for (int j = -dilate_amount; j <= dilate_amount; j++) {
+      if (raw_map.data[raw_map.info.width * y + x] == -1)
+      {
+        continue;
+      }
+      for (int i = -dilate_amount; i <= dilate_amount; i++)
+      {
+        for (int j = -dilate_amount; j <= dilate_amount; j++)
+        {
           int x_d = x + i;
           int y_d = y + j;
-          if (x_d < 0 || x_d > raw_map.info.width - 1 || y_d < 0 || y_d > raw_map.info.height - 1) {
+          if (x_d < 0 || x_d > raw_map.info.width - 1 || y_d < 0 || y_d > raw_map.info.height - 1)
+          {
             continue;
           }
-          inflated_map.data[raw_map.info.width * y_d + x_d] = 100;  // inflate with obstacle cells
+          inflated_map.data[raw_map.info.width * y_d + x_d] = 100; // inflate with obstacle cells
         }
       }
     }
@@ -177,14 +205,17 @@ bool FrontierDetector::FrontierDetector::InflateMap(nav_msgs::msg::OccupancyGrid
   return true;
 }
 
-bool FrontierDetector::FrontierDetector::ComputeFrontier(nav_msgs::msg::OccupancyGrid & inflated_map)
+bool FrontierDetector::FrontierDetector::ComputeFrontier(nav_msgs::msg::OccupancyGrid &inflated_map)
 {
   FrontierDetector::frontier.clear();
   geometry_msgs::msg::Point p;
-  if (!inflated_map.data.empty()) {
-    for (long n = 0; n < inflated_map.data.size(); n++) {
+  if (!inflated_map.data.empty())
+  {
+    for (long n = 0; n < inflated_map.data.size(); n++)
+    {
       // if the cell is free and a neighbor is unknown, it is a frontier cell
-      if (inflated_map.data[n] >= 0 && inflated_map.data[n] < 35 && CheckNeibor(inflated_map, n) == 1) {
+      if (inflated_map.data[n] >= 0 && inflated_map.data[n] < 35 && CheckNeibor(inflated_map, n) == 1)
+      {
         int n_x = n % inflated_map.info.width;
         int n_y = n / inflated_map.info.width;
         p.x = (n_x + 0.5) * inflated_map.info.resolution - std::fabs(inflated_map.info.origin.position.x);
@@ -193,7 +224,9 @@ bool FrontierDetector::FrontierDetector::ComputeFrontier(nav_msgs::msg::Occupanc
         FrontierDetector::frontier.push_back(p);
       }
     }
-  } else {
+  }
+  else
+  {
     RCLCPP_INFO(node_->get_logger(), "map data isn't received!");
     return false;
   }
@@ -201,18 +234,22 @@ bool FrontierDetector::FrontierDetector::ComputeFrontier(nav_msgs::msg::Occupanc
 }
 
 bool FrontierDetector::FrontierDetector::ComputeCentroids(
-  nav_msgs::msg::OccupancyGrid & inflated_map, std::vector<geometry_msgs::msg::Point> & frontiers)
+    nav_msgs::msg::OccupancyGrid &inflated_map, std::vector<geometry_msgs::msg::Point> &frontiers)
 {
   FrontierDetector::centroids.clear();
   FrontierDetector::raw_centroids.clear();
   pointGroup.clear();
-  if (frontiers.size() == 0) {
+  if (frontiers.size() == 0)
+  {
     std::cout << "Cannot find any frontiers! Checking!!" << std::endl;
     return false;
   }
-  for (int i = 0; i < frontiers.size(); i++) {
-    if (frontierClose.size() > 1) {
-      if (std::find(frontierClose.begin(), frontierClose.end(), frontiers[i]) != frontierClose.end()) {
+  for (int i = 0; i < frontiers.size(); i++)
+  {
+    if (frontierClose.size() > 1)
+    {
+      if (std::find(frontierClose.begin(), frontierClose.end(), frontiers[i]) != frontierClose.end())
+      {
         continue;
       }
     }
@@ -220,8 +257,9 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
     frontierClose.push_back(frontiers[i]);
     // find frontier groups; every group is disconnected from each other
     Grouping(inflated_map, frontiers[i]);
-    pointGroup = Sort(inflated_map, pointGroup);  // sort based on map-image index
-    if (pointGroup.size() <= 6) {  // avoid too-short frontiers
+    pointGroup = Sort(inflated_map, pointGroup); // sort based on map-image index
+    if (pointGroup.size() <= 6)
+    { // avoid too-short frontiers
       pointGroup.clear();
       continue;
     }
@@ -233,17 +271,23 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
 
   std::vector<int> pop_index;
   // close-pair filter: keep one of two centroids closer than 3m along a collision-free line
-  if (raw_centroids.size() >= 2) {
-    for (int m = 0; m < raw_centroids.size(); m++) {
-      for (int n = static_cast<int>(raw_centroids.size()) - 1; n > m; n--) {
+  if (raw_centroids.size() >= 2)
+  {
+    for (int m = 0; m < raw_centroids.size(); m++)
+    {
+      for (int n = static_cast<int>(raw_centroids.size()) - 1; n > m; n--)
+      {
         if (std::find(pop_index.begin(), pop_index.end(), n) != pop_index.end() ||
-            std::find(pop_index.begin(), pop_index.end(), m) != pop_index.end()) {
+            std::find(pop_index.begin(), pop_index.end(), m) != pop_index.end())
+        {
           continue;
         }
         float distance = sqrt(pow((raw_centroids[m].x - raw_centroids[n].x), 2) +
                               pow((raw_centroids[m].y - raw_centroids[n].y), 2));
-        if (distance < 3 && CheckCollision(raw_map, raw_centroids[m], raw_centroids[n])) {
-          if (std::find(pop_index.begin(), pop_index.end(), n) == pop_index.end()) {
+        if (distance < 3 && CheckCollision(raw_map, raw_centroids[m], raw_centroids[n]))
+        {
+          if (std::find(pop_index.begin(), pop_index.end(), n) == pop_index.end())
+          {
             pop_index.push_back(n);
           }
         }
@@ -253,8 +297,10 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
   // BUG FIX: 原来 centroids 只在 raw_centroids.size()>=2 分支里填充；单个前沿群组
   // （探索接近尾声"只剩一片前沿"的常见情形）会得到 0 个质心 → 主循环没目标可探、
   // 又不满足返航条件，无限空转。现在无论多少 raw centroid 都照常输出。
-  for (int num = 0; num < raw_centroids.size(); num++) {
-    if (std::find(pop_index.begin(), pop_index.end(), num) == pop_index.end()) {
+  for (int num = 0; num < raw_centroids.size(); num++)
+  {
+    if (std::find(pop_index.begin(), pop_index.end(), num) == pop_index.end())
+    {
       centroids.push_back(raw_centroids[num]);
     }
   }
@@ -268,7 +314,7 @@ bool FrontierDetector::FrontierDetector::ComputeCentroids(
 
 // lazy collision check
 bool FrontierDetector::FrontierDetector::CheckCollision(
-  const nav_msgs::msg::OccupancyGrid & map, geometry_msgs::msg::Point & start, geometry_msgs::msg::Point & end)
+    const nav_msgs::msg::OccupancyGrid &map, geometry_msgs::msg::Point &start, geometry_msgs::msg::Point &end)
 {
   float length = sqrt(pow((start.x - end.x), 2) + pow((start.y - end.y), 2));
   float COS_THETA = (end.x - start.x) / length;
@@ -279,21 +325,26 @@ bool FrontierDetector::FrontierDetector::CheckCollision(
 
   float x_check = start.x;
   float y_check = start.y;
-  while (fabs(x_check - end.x) > STEP && fabs(y_check - end.y) > STEP) {
+  while (fabs(x_check - end.x) > STEP && fabs(y_check - end.y) > STEP)
+  {
     int x_check_world = (x_check + fabs(map.info.origin.position.x)) / map.info.resolution;
     int y_check_world = (y_check + fabs(map.info.origin.position.y)) / map.info.resolution;
-    if (map.data[x_check_world + (y_check_world * map.info.width)] >= 70) {
+    if (map.data[x_check_world + (y_check_world * map.info.width)] >= 70)
+    {
       count++;
     }
     x_check += STEP * COS_THETA;
     y_check += STEP * SIN_THETA;
-    if (count > 2) { return false; }
+    if (count > 2)
+    {
+      return false;
+    }
   }
   return true;
 }
 
-void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid & inflated_map,
-                                                  geometry_msgs::msg::Point & point)
+void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid &inflated_map,
+                                                  geometry_msgs::msg::Point &point)
 {
   int out = 0;
   geometry_msgs::msg::Point temp;
@@ -303,19 +354,31 @@ void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid &
   worldPoint.y = (point.y + std::fabs(inflated_map.info.origin.position.y)) / inflated_map.info.resolution - 0.5;
   worldPoint.z = 0.0;
 
-  if (!frontier.empty()) {
-    for (float i = worldPoint.x - 1; i <= worldPoint.x + 1; i++) {
-      if (out == 1) { break; }
-      for (float j = worldPoint.y - 1; j <= worldPoint.y + 1; j++) {
+  if (!frontier.empty())
+  {
+    for (float i = worldPoint.x - 1; i <= worldPoint.x + 1; i++)
+    {
+      if (out == 1)
+      {
+        break;
+      }
+      for (float j = worldPoint.y - 1; j <= worldPoint.y + 1; j++)
+      {
         int index;
-        if (i == worldPoint.x && j == worldPoint.y) { continue; }
+        if (i == worldPoint.x && j == worldPoint.y)
+        {
+          continue;
+        }
         temp.x = (i + 0.5) * inflated_map.info.resolution - std::fabs(inflated_map.info.origin.position.x);
         temp.y = (j + 0.5) * inflated_map.info.resolution - std::fabs(inflated_map.info.origin.position.y);
-        temp.z = 0.0;  // temp is in map frame
+        temp.z = 0.0; // temp is in map frame
 
-        if (std::find(frontier.begin(), frontier.end(), temp) != frontier.end()) {
-          if (frontierClose.size() > 1) {
-            if (std::find(frontierClose.begin(), frontierClose.end(), temp) != frontierClose.end()) {
+        if (std::find(frontier.begin(), frontier.end(), temp) != frontier.end())
+        {
+          if (frontierClose.size() > 1)
+          {
+            if (std::find(frontierClose.begin(), frontierClose.end(), temp) != frontierClose.end())
+            {
               continue;
             }
           }
@@ -323,7 +386,7 @@ void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid &
           index = std::distance(frontier.begin(), itera);
           pointGroup.push_back(frontier[index]);
           frontierClose.push_back(frontier[index]);
-          Grouping(inflated_map, frontier[index]);  // recursive
+          Grouping(inflated_map, frontier[index]); // recursive
           out = 1;
           break;
         }
@@ -333,42 +396,48 @@ void FrontierDetector::FrontierDetector::Grouping(nav_msgs::msg::OccupancyGrid &
 }
 
 std::vector<geometry_msgs::msg::Point> FrontierDetector::FrontierDetector::Sort(
-  nav_msgs::msg::OccupancyGrid & inflated_map, std::vector<geometry_msgs::msg::Point> & pts)
+    nav_msgs::msg::OccupancyGrid &inflated_map, std::vector<geometry_msgs::msg::Point> &pts)
 {
   std::vector<geometry_msgs::msg::Point> outcome;
   outcome = pts;
   geometry_msgs::msg::Point p;
-  if (!pts.empty()) {
+  if (!pts.empty())
+  {
     p = pts[0];
-    for (int i = 0; i < outcome.size() - 1; i++) {
-      for (int j = 0; j < outcome.size() - 1 - i; j++) {
+    for (int i = 0; i < outcome.size() - 1; i++)
+    {
+      for (int j = 0; j < outcome.size() - 1 - i; j++)
+      {
         // sort based on image index
         if ((outcome[j].y * inflated_map.info.width + outcome[j].x) <
-            (outcome[j + 1].y * inflated_map.info.width + outcome[j + 1].x)) {
+            (outcome[j + 1].y * inflated_map.info.width + outcome[j + 1].x))
+        {
           p = outcome[j];
           outcome[j] = outcome[j + 1];
           outcome[j + 1] = p;
         }
       }
     }
-  } else {
+  }
+  else
+  {
     std::cout << "Group is empty!!" << std::endl;
   }
   return outcome;
 }
 
-FrontierDetector::FrontierDetector::FrontierDetector(const rclcpp::Node::SharedPtr & node)
-: node_(node),
-  frontierMarker_(node->create_publisher<visualization_msgs::msg::Marker>("frontier_vis", 1000)),
-  centroidMarker_(node->create_publisher<visualization_msgs::msg::Marker>("centroid_vis", 1000)),
-  FrontierPub_(node->create_publisher<frontier_exploration::msg::PointArray>("frontier", 1000)),
-  CentroidsPub_(node->create_publisher<frontier_exploration::msg::PointArray>("centroids", 1000)),
-  inflatedMapPub_(node->create_publisher<nav_msgs::msg::OccupancyGrid>("inflated_map", 1000)),
-  MapSub_(node->create_subscription<nav_msgs::msg::OccupancyGrid>(
-    "map", 10, std::bind(&FrontierDetector::mapCallback, this, std::placeholders::_1))),
-  CentriodServer_(node->create_service<frontier_exploration::srv::GetCentroids>(
-    "get_centroids",
-    std::bind(&FrontierDetector::centroidCallback, this, std::placeholders::_1, std::placeholders::_2)))
+FrontierDetector::FrontierDetector::FrontierDetector(const rclcpp::Node::SharedPtr &node)
+    : node_(node),
+      frontierMarker_(node->create_publisher<visualization_msgs::msg::Marker>("frontier_vis", 1000)),
+      centroidMarker_(node->create_publisher<visualization_msgs::msg::Marker>("centroid_vis", 1000)),
+      FrontierPub_(node->create_publisher<frontier_exploration::msg::PointArray>("frontier", 1000)),
+      CentroidsPub_(node->create_publisher<frontier_exploration::msg::PointArray>("centroids", 1000)),
+      inflatedMapPub_(node->create_publisher<nav_msgs::msg::OccupancyGrid>("inflated_map", 1000)),
+      MapSub_(node->create_subscription<nav_msgs::msg::OccupancyGrid>(
+          "map", 10, std::bind(&FrontierDetector::mapCallback, this, std::placeholders::_1))),
+      CentriodServer_(node->create_service<frontier_exploration::srv::GetCentroids>(
+          "get_centroids",
+          std::bind(&FrontierDetector::centroidCallback, this, std::placeholders::_1, std::placeholders::_2)))
 {
   InitDetector();
   InitVis();

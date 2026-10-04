@@ -81,18 +81,18 @@ def generate_launch_description():
         # ),
 
         # 2) slam_toolbox + Nav2 navigation
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(nav2_bringup, 'launch', 'bringup_launch.py')),
-            launch_arguments={
-                'slam': 'True',
-                'map': os.path.join(tb3_nav2, 'map', 'map.yaml'),  # required arg; unused in slam mode
-                'use_sim_time': use_sim_time,
-                'params_file': params_file,
-                'autostart': 'True',
-                'use_composition': 'False',
-            }.items(),
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         os.path.join(nav2_bringup, 'launch', 'bringup_launch.py')),
+        #     launch_arguments={
+        #         'slam': 'True',
+        #         'map': os.path.join(tb3_nav2, 'map', 'map.yaml'),  # required arg; unused in slam mode
+        #         'use_sim_time': use_sim_time,
+        #         'params_file': params_file,
+        #         'autostart': 'True',
+        #         'use_composition': 'False',
+        #     }.items(),
+        # ),
 
         # 3) RViz with the exploration displays (map, inflated map, frontiers, centroids, goal, home)
         Node(
@@ -115,8 +115,8 @@ def generate_launch_description():
                         {'map_revolution': 0.1},
                         {'cmd_topic': 'cmd_vel'},
                         {'robot_base_frame': 'base_link'},
-                        {'goal_tolerance': 0.3},
-                        {'obstacle_tolerance': 0.5},
-                        {'rotate_speed': 0.5}],
+                        {'goal_tolerance': 0.7},
+                        {'obstacle_tolerance': 2.0},
+                        {'rotate_speed': 1.0}],
         ),
     ])
